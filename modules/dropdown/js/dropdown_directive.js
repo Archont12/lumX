@@ -18,7 +18,11 @@
             templateUrl: 'dropdown.html',
             scope:
             {
+                effect: '@?lxEffect',
                 escapeClose: '=?lxEscapeClose',
+                hover: '=?lxHover',
+                hoverDelay: '=?lxHoverDelay',
+                offset: '@?lxOffset',
                 overToggle: '=?lxOverToggle',
                 position: '@?lxPosition',
                 width: '@?lxWidth'
@@ -61,51 +65,69 @@
                 }
             });
 
-            $document.on('click', closeDropdownMenu);
+            attrs.$observe('id', function(_newId)
+            {
+                ctrl.uuid = _newId;
+            });
 
             scope.$on('$destroy', function()
             {
-                ctrl.closeDropdownMenu();
-                $document.off('click', closeDropdownMenu);
+                if (ctrl.isOpen)
+                {
+                    ctrl.closeDropdownMenu();
+                }
+
                 $timeout.cancel(timer);
             });
-
-            function closeDropdownMenu()
-            {
-                if (scope.lxDropdown.isOpen)
-                {
-                    timer = $timeout(function()
-                    {
-                        scope.$apply(function()
-                        {
-                            ctrl.closeDropdownMenu();
-                        });
-                    });
-                }
-            }
         }
     }
 
-    LxDropdownController.$inject = ['$element', '$interval', '$scope', '$timeout', '$window', 'LxDepthService', 'LxEventSchedulerService'];
+    LxDropdownController.$inject = ['$element', '$scope', '$timeout', '$window', 'LxDepthService', 'LxDropdownService',
+        'LxEventSchedulerService', 'LxUtils'
+    ];
 
-    function LxDropdownController($element, $interval, $scope, $timeout, $window, LxDepthService, LxEventSchedulerService)
+    function LxDropdownController($element, $scope, $timeout, $window, LxDepthService, LxDropdownService,
+        LxEventSchedulerService, LxUtils)
     {
         var lxDropdown = this;
-        var dropdownInterval;
         var dropdownMenu;
         var dropdownToggle;
         var idEventScheduler;
         var timer;
 
         lxDropdown.closeDropdownMenu = closeDropdownMenu;
+        lxDropdown.openDropdownMenu = openDropdownMenu;
         lxDropdown.registerDropdownMenu = registerDropdownMenu;
         lxDropdown.registerDropdownToggle = registerDropdownToggle;
         lxDropdown.toggle = toggle;
+        lxDropdown.uuid = LxUtils.generateUUID();
 
+        lxDropdown.effect = angular.isDefined(lxDropdown.effect) ? lxDropdown.effect : 'expand';
         lxDropdown.escapeClose = angular.isDefined(lxDropdown.escapeClose) ? lxDropdown.escapeClose : true;
+        lxDropdown.hasToggle = false;
         lxDropdown.isOpen = false;
         lxDropdown.overToggle = angular.isDefined(lxDropdown.overToggle) ? lxDropdown.overToggle : false;
         lxDropdown.position = angular.isDefined(lxDropdown.position) ? lxDropdown.position : 'left';
+
+        $scope.$on('lx-dropdown__open', function(_event, _params)
+        {
+            if (_params.uuid === lxDropdown.uuid && !lxDropdown.isOpen)
+            {
+                LxDropdownService.closeActiveDropdown();
+                LxDropdownService.registerActiveDropdownUuid(lxDropdown.uuid);
+
+                registerDropdownToggle(angular.element(_params.target));
+                openDropdownMenu();
+            }
+        });
+
+        $scope.$on('lx-dropdown__close', function(_event, _params)
+        {
+            if (_params.uuid === lxDropdown.uuid && lxDropdown.isOpen)
+            {
+                closeDropdownMenu();
+            }
+        });
 
         $scope.$on('$destroy', function()
         {
@@ -116,21 +138,40 @@
 
         function closeDropdownMenu()
         {
-            $interval.cancel(dropdownInterval);
+            LxDropdownService.resetActiveDropdownUuid();
+
+            var velocityProperties;
+            var velocityEasing;
+
+            angular.element('body').removeClass('no-scroll-dropdown-' + lxDropdown.uuid);
 
             dropdownMenu.css(
             {
                 overflow: 'hidden'
             });
 
-            dropdownMenu.velocity(
+            if (lxDropdown.effect === 'expand')
             {
-                width: 0,
-                height: 0,
-            },
+                velocityProperties = {
+                    width: 0,
+                    height: 0
+                };
+
+                velocityEasing = 'easeOutQuint';
+            }
+            else if (lxDropdown.effect === 'fade')
+            {
+                velocityProperties = {
+                    opacity: 0
+                };
+
+                velocityEasing = 'linear';
+            }
+
+            dropdownMenu.velocity(velocityProperties,
             {
                 duration: 200,
-                easing: 'easeOutQuint',
+                easing: velocityEasing,
                 complete: function()
                 {
                     $element.find('.dropdown').removeClass('dropdown--is-open');
@@ -183,71 +224,83 @@
                 {
                     enoughtHeight = false;
                     height = availableHeight;
+
+                    angular.element('body').addClass('no-scroll-dropdown-' + lxDropdown.uuid);
                 }
 
-                dropdownMenu.css(
+                if (lxDropdown.effect === 'expand')
                 {
-                    width: 0,
-                    height: 0,
-                    opacity: 1,
-                    overflow: 'hidden'
-                });
-
-                dropdownMenu.find('.dropdown-menu__content').css(
-                {
-                    width: width,
-                    height: height
-                });
-
-                dropdownMenu.velocity(
-                {
-                    width: width
-                },
-                {
-                    duration: 200,
-                    easing: 'easeOutQuint',
-                    queue: false
-                });
-
-                dropdownMenu.velocity(
-                {
-                    height: height
-                },
-                {
-                    duration: 500,
-                    easing: 'easeOutQuint',
-                    queue: false,
-                    complete: function()
+                    dropdownMenu.css(
                     {
-                        dropdownMenu.css(
-                        {
-                            overflow: 'auto'
-                        });
+                        width: 0,
+                        height: 0,
+                        opacity: 1,
+                        overflow: 'hidden'
+                    });
 
-                        if (enoughtHeight)
+                    dropdownMenu.find('.dropdown-menu__content').css(
+                    {
+                        width: width,
+                        height: height
+                    });
+
+                    dropdownMenu.velocity(
+                    {
+                        width: width
+                    },
+                    {
+                        duration: 200,
+                        easing: 'easeOutQuint',
+                        queue: false
+                    });
+
+                    dropdownMenu.velocity(
+                    {
+                        height: height
+                    },
+                    {
+                        duration: 500,
+                        easing: 'easeOutQuint',
+                        queue: false,
+                        complete: function()
                         {
                             dropdownMenu.css(
                             {
-                                height: 'auto'
+                                overflow: 'auto'
                             });
-                        }
 
-                        if (angular.isUndefined(lxDropdown.width))
-                        {
-                            dropdownMenu.css(
+                            if (enoughtHeight)
                             {
-                                width: 'auto'
-                            });
+                                dropdownMenu.css(
+                                {
+                                    height: 'auto'
+                                });
+                            }
+
+                            if (angular.isUndefined(lxDropdown.width))
+                            {
+                                dropdownMenu.css(
+                                {
+                                    width: 'auto'
+                                });
+                            }
+
+                            dropdownMenu.find('.dropdown-menu__content').removeAttr('style');
                         }
-
-                        dropdownMenu.find('.dropdown-menu__content').removeAttr('style');
-
-                        dropdownInterval = $interval(function()
-                        {
-                            setDropdownMenuCss();
-                        }, 500);
-                    }
-                });
+                    });
+                }
+                else if (lxDropdown.effect === 'fade')
+                {
+                    dropdownMenu.velocity(
+                    {
+                        opacity: 1,
+                    },
+                    {
+                        duration: 200,
+                        easing: 'linear',
+                        queue: false
+                    });
+                }
             });
         }
 
@@ -281,6 +334,8 @@
             var dropdownMenuTopAvailable;
             var dropdownMenuBottomAvailable;
             var dropdownMenuWidth;
+            var dropdownMenuLeft;
+            var dropdownMenuRight;
 
             if (lxDropdown.overToggle)
             {
@@ -309,10 +364,26 @@
                 dropdownMenuWidth = 'auto';
             }
 
+            if (lxDropdown.position === 'left')
+            {
+                dropdownMenuLeft = dropdownToggle.offset().left;
+                dropdownMenuRight = 'auto';
+            }
+            else if (lxDropdown.position === 'right')
+            {
+                dropdownMenuLeft = 'auto';
+                dropdownMenuRight = windowWidth - dropdownToggle.offset().left - dropdownToggleWidth;
+            }
+            else if (lxDropdown.position === 'center')
+            {
+                dropdownMenuLeft = (dropdownToggle.offset().left + (dropdownToggleWidth / 2)) - (dropdownMenuWidth / 2);
+                dropdownMenuRight = 'auto';
+            }
+
             dropdownMenu.css(
             {
-                right: lxDropdown.position === 'right' ? (windowWidth - dropdownToggle.offset().left - dropdownToggleWidth) : 'auto',
-                left: lxDropdown.position === 'right' ? 'auto' : dropdownToggle.offset().left,
+                left: dropdownMenuLeft,
+                right: dropdownMenuRight,
                 width: dropdownMenuWidth
             });
 
@@ -320,7 +391,7 @@
             {
                 dropdownMenu.css(
                 {
-                    bottom: lxDropdown.overToggle ? (windowHeight - dropdownToggle.offset().top - dropdownToggleHeight) : (windowHeight - dropdownToggle.offset().top)
+                    bottom: lxDropdown.overToggle ? (windowHeight - dropdownToggle.offset().top - dropdownToggleHeight) : (windowHeight - dropdownToggle.offset().top + ~~lxDropdown.offset)
                 });
 
                 return dropdownMenuTopAvailable;
@@ -329,7 +400,7 @@
             {
                 dropdownMenu.css(
                 {
-                    top: lxDropdown.overToggle ? dropdownToggle.offset().top : (dropdownToggle.offset().top + dropdownToggleHeight)
+                    top: lxDropdown.overToggle ? dropdownToggle.offset().top : (dropdownToggle.offset().top + dropdownToggleHeight + ~~lxDropdown.offset)
                 });
 
                 return dropdownMenuBottomAvailable;
@@ -349,7 +420,9 @@
         }
     }
 
-    function lxDropdownToggle()
+    lxDropdownToggle.$inject = ['$timeout', 'LxDropdownService'];
+
+    function lxDropdownToggle($timeout, LxDropdownService)
     {
         return {
             restrict: 'AE',
@@ -363,34 +436,83 @@
 
         function link(scope, element, attrs, ctrl)
         {
+            var timer1;
+            var timer2;
+
+            ctrl.hasToggle = true;
             ctrl.registerDropdownToggle(element);
 
-            element.on('click', function(_event)
+            element.on(ctrl.hover ? 'mouseenter' : 'click', function(_event)
             {
-                _event.stopPropagation();
-
-                angular.element('.dropdown').each(function(index, dropdownElem)
+                if (!ctrl.hover)
                 {
-                    if (angular.isDefined(angular.element(dropdownElem).scope().lxDropdown) && angular.element(dropdownElem).scope().lxDropdown.isOpen)
+                    _event.stopPropagation();
+                }
+
+                LxDropdownService.closeActiveDropdown();
+                LxDropdownService.registerActiveDropdownUuid(ctrl.uuid);
+
+                if (ctrl.hover)
+                {
+                    ctrl.mouseOnToggle = true;
+
+                    if (!ctrl.isOpen)
                     {
-                        angular.element(dropdownElem).scope().lxDropdown.closeDropdownMenu();
+                        timer1 = $timeout(function()
+                        {
+                            scope.$apply(function()
+                            {
+                                ctrl.openDropdownMenu();
+                            });
+                        }, ctrl.hoverDelay);
                     }
-                });
-
-                scope.$apply(function()
+                }
+                else
                 {
-                    ctrl.toggle();
-                });
+                    scope.$apply(function()
+                    {
+                        ctrl.toggle();
+                    });
+                }
             });
+
+            if (ctrl.hover)
+            {
+                element.on('mouseleave', function()
+                {
+                    ctrl.mouseOnToggle = false;
+
+                    $timeout.cancel(timer1);
+
+                    timer2 = $timeout(function()
+                    {
+                        if (!ctrl.mouseOnMenu)
+                        {
+                            scope.$apply(function()
+                            {
+                                ctrl.closeDropdownMenu();
+                            });
+                        }
+                    }, ctrl.hoverDelay);
+                });
+            }
 
             scope.$on('$destroy', function()
             {
                 element.off();
+
+                if (ctrl.hover)
+                {
+                    $timeout.cancel(timer1);
+                    $timeout.cancel(timer2);
+                }
             });
         }
     }
 
-    function lxDropdownMenu()
+    lxDropdownMenu.$inject = ['$timeout'];
+
+    function lxDropdownMenu($timeout)
     {
         return {
             restrict: 'E',
@@ -407,8 +529,43 @@
 
         function link(scope, element, attrs, ctrls)
         {
+            var timer;
+
             ctrls[1].registerDropdownMenu(element);
             ctrls[0].setParentController(ctrls[1]);
+
+            if (ctrls[1].hover)
+            {
+                element.on('mouseenter', function()
+                {
+                    ctrls[1].mouseOnMenu = true;
+                });
+
+                element.on('mouseleave', function()
+                {
+                    ctrls[1].mouseOnMenu = false;
+
+                    timer = $timeout(function()
+                    {
+                        if (!ctrls[1].mouseOnToggle)
+                        {
+                            scope.$apply(function()
+                            {
+                                ctrls[1].closeDropdownMenu();
+                            });
+                        }
+                    }, ctrls[1].hoverDelay);
+                });
+            }
+
+            scope.$on('$destroy', function()
+            {
+                if (ctrls[1].hover)
+                {
+                    element.off();
+                    $timeout.cancel(timer);
+                }
+            });
         }
     }
 
@@ -438,22 +595,15 @@
         function link(scope, element)
         {
             var timer;
-            var input = element.find('input');
 
             element.on('click', function(_event)
             {
                 _event.stopPropagation();
             });
 
-            input.keyup(function(e) {
-                if (e.which === 40) { // Down key
-                    element.closest('.dropdown-menu').find('.lx-select-choices__choice')[0].focus();
-                }
-            });
-
             timer = $timeout(function()
             {
-                input.focus();
+                element.find('input').focus();
             }, 200);
 
             scope.$on('$destroy', function()

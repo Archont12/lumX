@@ -3,7 +3,7 @@
 //\*------------------------------------*/
 
 // Dropdown
-.dropdown {
+.dropdown--has-toggle {
     position: relative;
     display: inline-block;
     vertical-align: top;
@@ -76,12 +76,7 @@
 
     &:not(.dropdown-link--is-header) {
         &:hover {
-            background-color: $grey-50;
-            color: $primary;
-        }
-
-        &.active {
-            font-weight: bold;
+            background-color: $grey-200;
         }
 
         #{$base-icon-prefix} {

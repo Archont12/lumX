@@ -40,8 +40,6 @@
                 toFilter = choices;
             }
 
-            toFilter = toFilter.filter(function( it){ return !it.hidden; });
-
             return $filter('filter')(toFilter, textFilter);
         };
     }
@@ -55,7 +53,8 @@
             {
                 allowClear: '=?lxAllowClear',
                 choices: '=?lxChoices',
-                customStyle: '@?lxCustomStyle',
+                choicesCustomStyle: '=?lxChoicesCustomStyle',
+                customStyle: '=?lxCustomStyle',
                 displayFilter: '=?lxDisplayFilter',
                 error: '=?lxError',
                 filter: '&?lxFilter',
@@ -83,7 +82,7 @@
 
         function link(scope, element, attrs)
         {
-            var backwardOneWay = ['customStyle', 'choicesClass'];
+            var backwardOneWay = ['customStyle'];
             var backwardTwoWay = ['allowClear', 'choices', 'error', 'loading', 'multiple', 'valid'];
 
             angular.forEach(backwardOneWay, function(attribute)
@@ -182,10 +181,6 @@
 
         function displayChoice(_choice)
         {
-            if ( _choice.hidden || _choice.alwaysHidden){
-                return;
-            }
-
             var choiceScope = {
                 $choice: _choice
             };
@@ -347,7 +342,7 @@
 
                 for (var i = 0; i < clone.length; i++)
                 {
-                    template += clone[i].outerHTML || '';
+                    template += clone[i].data || clone[i].outerHTML || '';
                 }
 
                 ctrls[1].registerSelectedTemplate(template);
@@ -409,7 +404,7 @@
 
                 for (var i = 0; i < clone.length; i++)
                 {
-                    template += clone[i].outerHTML || '';
+                    template += clone[i].data || clone[i].outerHTML || '';
                 }
 
                 ctrls[1].registerChoiceTemplate(template);
@@ -429,7 +424,6 @@
         lxSelectChoices.setParentController = setParentController;
         lxSelectChoices.toggleChoice = toggleChoice;
         lxSelectChoices.updateFilter = updateFilter;
-        lxSelectChoices.onChoiceKeyDown = onChoiceKeyDown;
 
         lxSelectChoices.filterModel = undefined;
 
@@ -500,11 +494,6 @@
 
         function toggleChoice(_choice, _event)
         {
-            if (_choice.disabled || _choice.alwaysDisabled) {
-                _event.stopPropagation();
-                return;
-            }
-
             if (lxSelectChoices.parentCtrl.multiple)
             {
                 _event.stopPropagation();
@@ -517,32 +506,6 @@
             else
             {
                 lxSelectChoices.parentCtrl.select(_choice);
-            }
-        }
-
-        function onChoiceKeyDown(_choice, _event)
-        {
-            if (_event.which === 40) { // Down key
-                _event.preventDefault();
-                var last = $(_event.target).parent().find('.lx-select-choices__choice').not('[disabled],.hidden').last().get(0);
-                if (_event.target !== last) {
-                    $(_event.target).nextAll('.lx-select-choices__choice').not('[disabled],.hidden').first().focus();
-                }
-            }
-            else if (_event.which === 38) { // Up key
-                _event.preventDefault();
-                var first = $(_event.target).parent().find('.lx-select-choices__choice').not('[disabled],.hidden').first().get(0);
-                if (_event.target === first) {
-                    $(_event.target).parent().siblings('.lx-select-choices__filter').find('input').focus();
-                }
-                else {
-                    $(_event.target).prevAll('.lx-select-choices__choice').not('[disabled],.hidden').first().focus();
-                }
-            }
-            else if (_event.which === 13) { // Enter key
-                $timeout(function() {
-                    $(_event.target).click();
-                });
             }
         }
 

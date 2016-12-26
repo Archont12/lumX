@@ -197,7 +197,9 @@
                     {
                         'main@':
                         {
-                            templateUrl: '/includes/modules/data-table/data-table.html'
+                            templateUrl: '/includes/modules/data-table/data-table.html',
+                            controller: 'DemoDataTableController',
+                            controllerAs: 'vm'
                         }
                     }
                 })
@@ -234,7 +236,9 @@
                     {
                         'main@':
                         {
-                            templateUrl: '/includes/modules/dropdown/dropdown.html'
+                            templateUrl: '/includes/modules/dropdown/dropdown.html',
+                            controller: 'DemoDropdownController',
+                            controllerAs: 'vm'
                         }
                     }
                 })

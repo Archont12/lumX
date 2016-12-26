@@ -74,7 +74,7 @@
                 $element.removeClass('input-file--is-active');
             }
 
-            //input.val(undefined);
+            input.val(undefined);
         }
 
         function updateModel()

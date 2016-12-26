@@ -104,7 +104,7 @@
         }
 
         .text-field--is-active:not(.text-field--fixed-label) & {
-            @include transform(scale(0.75) translateY(-2 * $base-spacing-unit));
+            @include transform(scale(0.75) translateY(0));
         }
 
         .text-field--is-focus:not(.text-field--fixed-label) & {

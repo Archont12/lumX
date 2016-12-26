@@ -23,8 +23,7 @@
                 maxDate: '=?lxMaxDate',
                 ngModel: '=',
                 minDate: '=?lxMinDate',
-                locale: '@lxLocale',
-                header: '=?lxHeader'
+                locale: '@lxLocale'
             },
             link: link,
             controller: LxDatePickerController,
@@ -52,17 +51,17 @@
         }
     }
 
-    LxDatePickerController.$inject = ['$element', '$scope', '$timeout', '$transclude', 'LxDatePickerService'];
+    LxDatePickerController.$inject = ['$element', '$scope', '$timeout', '$transclude', 'LxDatePickerService', 'LxUtils'];
 
-    function LxDatePickerController($element, $scope, $timeout, $transclude, LxDatePickerService)
+    function LxDatePickerController($element, $scope, $timeout, $transclude, LxDatePickerService, LxUtils)
     {
         var lxDatePicker = this;
         var input;
         var modelController;
         var timer1;
         var timer2;
-        var watcher;
-
+        var watcher1;
+        var watcher2;
 
         lxDatePicker.closeDatePicker = closeDatePicker;
         lxDatePicker.displayYearSelection = displayYearSelection;
@@ -81,6 +80,7 @@
         lxDatePicker.isOpen = false;
         lxDatePicker.moment = moment;
         lxDatePicker.yearSelection = false;
+        lxDatePicker.uuid = LxUtils.generateUUID();
 
         $transclude(function(clone)
         {
@@ -93,7 +93,7 @@
                     input = $element.find('.lx-date-input input');
                     modelController = input.data('$ngModelController');
 
-                    watcher = $scope.$watch(function()
+                    watcher2 = $scope.$watch(function()
                     {
                         return modelController.$viewValue;
                     }, function(newValue, oldValue)
@@ -101,26 +101,32 @@
                         if (angular.isUndefined(newValue))
                         {
                             lxDatePicker.ngModel = undefined;
-
-                            init();
                         }
                     });
                 });
             }
         });
 
+        watcher1 = $scope.$watch(function()
+        {
+            return lxDatePicker.ngModel;
+        }, init);
+
         $scope.$on('$destroy', function()
         {
             $timeout.cancel(timer1);
             $timeout.cancel(timer2);
 
-            if (angular.isFunction(watcher))
+            if (angular.isFunction(watcher1))
             {
-                watcher();
+                watcher1();
+            }
+
+            if (angular.isFunction(watcher2))
+            {
+                watcher2();
             }
         });
-
-        init();
 
         ////////////
 
@@ -152,7 +158,6 @@
             lxDatePicker.days = [];
 
             var previousDay = angular.copy(lxDatePicker.ngModelMoment).date(0);
-
             var firstDayOfMonth = angular.copy(lxDatePicker.ngModelMoment).date(1);
             var lastDayOfMonth = firstDayOfMonth.clone().endOf('month');
             var maxDays = lastDayOfMonth.date();
@@ -177,15 +182,9 @@
                     date.disabled = true;
                 }
 
-                if (angular.isDefined(lxDatePicker.maxDate) )
+                if (angular.isDefined(lxDatePicker.maxDate) && date.toDate() > lxDatePicker.maxDate)
                 {
-                    var d = date.toDate();
-                    d.setHours(0);
-                    d.setMinutes(0);
-                    if ( d > lxDatePicker.maxDate) {
-
-                        date.disabled = true;
-                    }
+                    date.disabled = true;
                 }
 
                 lxDatePicker.days.push(date);
@@ -240,7 +239,6 @@
         function openDatePicker()
         {
             LxDatePickerService.open(lxDatePicker.pickerId);
-            init();
         }
 
         function previousMonth()
