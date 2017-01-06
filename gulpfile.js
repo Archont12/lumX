@@ -323,6 +323,19 @@ gulp.task('tpl:checkbox', function()
         .pipe(gulp.dest('build/js/templates'));
 });
 
+gulp.task('tpl:data-table', function()
+{
+    return gulp.src('modules/data-table/views/*.html')
+        .pipe(plugins.plumber())
+        .pipe(plugins.templatecache(
+        {
+            output: 'data-table_template.js',
+            moduleName: 'lumx.data-table',
+            strip: 'views/'
+        }))
+        .pipe(gulp.dest('build/js/templates'));
+});
+
 gulp.task('tpl:radio-button', function()
 {
     return gulp.src('modules/radio-button/views/*.html')
